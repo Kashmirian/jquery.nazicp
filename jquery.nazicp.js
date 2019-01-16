@@ -1,4 +1,7 @@
-﻿//nazicp.jquery
+//nazicp.jquery
+//require jquery.js > 1.9.x
+//require bootstrap.js >3.x
+//require animate.css
 (function ($) {
 
     $.fn.extend({
@@ -12,6 +15,7 @@
             this.removeAttr("disabled").button("reset");
             return this;
         },
+
         toast: function (title, msg, style) {
             var html = '<div class="alert alert-' + style + ' alert-dismissible margin5 nlm nrm" role="alert">';
             html += '<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true"><i class="fa fa-times"></i></span></button>';
@@ -19,18 +23,63 @@
             html += '</div>';
             this.prepend(html);
             return this;
+        },
+
+        loading:function(currentIcon,icon){
+            var repicon=icon || 'fa-spinner';
+            this.attr({
+                'data-original-icon': function(){
+                    return currentIcon;
+                }
+            }).removeClass(currentIcon).addClass(repicon + " fa-spin");
+            return this;
+        },
+        loadover: function (icon) {
+            var repicon = icon || 'fa-spinner';
+            var restoreicon = this.attr('data-original-icon');
+            console.log(repicon, this.attr('data-original-icon'));
+            this.removeClass(repicon + ' fa-spin').addClass(restoreicon).removeAttr('data-original-icon');
+            return this;
+        },
+        animateCss: function (animationName, callback) {
+            var animationEnd = (function (el) {
+                var animations = {
+                    animation: 'animationend',
+                    OAnimation: 'oAnimationEnd',
+                    MozAnimation: 'mozAnimationEnd',
+                    WebkitAnimation: 'webkitAnimationEnd',
+                };
+
+                for (var t in animations) {
+                    if (el.style[t] !== undefined) {
+                        return animations[t];
+                    }
+                }
+            })(document.createElement('div'));
+
+            this.addClass('animated ' + animationName).one(animationEnd, function () {
+                $(this).removeClass('animated ' + animationName);
+
+                if (typeof callback === 'function') callback();
+            });
+
+            return this;
         }
     });
 
     $.extend({
-        //$.sendAjax(url, param, dataType, method, sender, sucFunc, beforeFunc, completeFunc)
-        sendAjax: function (url, param, dataType, method, sender, sucFunc, beforeFunc, completeFunc) {
+        //$.sendAjax(url, param, dataType, method, sender, sucFunc, beforeFunc, completeFunc,errFunc)
+        sendAjax: function (url, param, dataType, method, sender, sucFunc, beforeFunc, completeFunc, errFunc) {
             if (beforeFunc == null) {
-                beforeFunc = function () { block(sender); }
+                beforeFunc = function () { $(sender).block(); }
             }
             if (completeFunc == null) {
-                completeFunc = function () { unblock(sender); }
+                completeFunc = function () { $(sender).unblock(); }
             }
+
+            errFunc = errFunc||function (x, h, r) {
+                alert('Request Error: ' + x.status + ' ' + r);
+                }
 
             $.ajax({
                 url: url,
@@ -40,19 +89,20 @@
                 traditional: true,
                 beforeSend: beforeFunc,
                 success: sucFunc,
-                error: function (x, h, r) {
-                    alert("Request Error + " + x.status);
-                },
+                error: errFunc,
                 complete: completeFunc
             });
         },
-        //$.sendForm(url, formid, dataType, sender, sucFunc, beforeFunc, completeFunc)
-        sendForm: function (url, formid, dataType, sender, sucFunc, beforeFunc, completeFunc) {
+        //$.sendForm(url, formid, dataType, sender, sucFunc, beforeFunc, completeFunc,debug)
+        sendForm: function (url, formid, dataType, sender, sucFunc, beforeFunc, completeFunc,debug) {
+
+            var isdebug = debug || false;
+
             if (beforeFunc == null) {
-                beforeFunc = function () { block(sender); }
+                beforeFunc = function () { $(sender).block(); }
             }
             if (completeFunc == null) {
-                completeFunc = function () { unblock(sender); }
+                completeFunc = function () { $(sender).unblock(); }
             }
 
             var fmdata = new FormData();
@@ -60,6 +110,13 @@
             $.each($(formid).find('textarea'), function (i, n) {
                 fmdata.append($(n).attr('name'), $.trim($(n).val()));
             });
+
+            //add select
+            $.each($(formid).find('select'), function (i, n) {
+                fmdata.append($(n).attr('name'), $.trim($(n).val()));
+            });
+
+
             //find Input
             $.each($(formid).find('input'), function (i, n) {
                 switch ($(n).attr('type')) {
@@ -86,6 +143,9 @@
                         break;
                 }
             });
+            if (isdebug) {
+                console.log(fmdata);
+            }
 
             $.ajax({
                 url: url,
